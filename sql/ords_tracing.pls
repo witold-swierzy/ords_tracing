@@ -1,16 +1,17 @@
-create or replace package ords_tracing
+create or replace package ords_trc_pkg
 is
-
-	fmt_text constant integer := 1;
-	fmt_json constant integer := 2;
-
 	type session_array_type is table of gv$session%rowtype;
+	
+	procedure snapshot(p_username varchar2 := null);
 
-	function list_ords_sessions return session_array_type pipelined parallel_enable;
-	procedure snapshot;
-	procedure create_snapshot_job(freq integer);
-	procedure drop_snapshot_job;
-	function report return clob;
-	procedure purge_logs;
+	procedure create_job(freq integer, p_username varchar2 := null);
+
+	procedure drop_job(p_username varchar2 := null);
+
+	function get_report(p_username varchar2 := null) return clob;
+
+	procedure print_report(p_username varchar2 := null);
+
+	procedure purge_logs(p_username varchar2 := null);
 end;
 /
