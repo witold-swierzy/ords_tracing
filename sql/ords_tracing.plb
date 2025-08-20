@@ -8,7 +8,8 @@ is
 	begin
 		for r1 in (select * 
                    from gv$session 
-                   where program = 'Oracle REST Data Services'
+                   where (program = 'Oracle REST Data Services'
+				          or program like 'ORDS%')
                    and username <> 'ORDS_PUBLIC_USER' 
 				   and username = nvl(upper(p_username),username)) loop
 
@@ -143,6 +144,37 @@ is
 			v_frequency := lpad(r.frequency,9);
 
 			dbms_output.put_line(v_job_name||' '||v_frequency);
+		end loop;
+	end;
+
+	function get_sessions(p_username varchar2 := null) return session_array_type
+	pipelined
+	parallel_enable
+	is
+	begin
+		for r in (select * 
+                  from gv$session 
+                  where (program = 'Oracle REST Data Services'
+				         or program like 'ORDS%')
+                  and username <> 'ORDS_PUBLIC_USER'
+				  and username = nvl(upper(p_username),username)) loop
+			pipe row(r);
+		end loop;
+	end;
+
+	procedure print_sessions(p_username varchar2 := null)
+	is
+	begin
+		dbms_output.put_line('INST_ID    SID  SERIAL# USERNAME                       STATUS    MACHINE                        PROGRAM');
+		dbms_output.put_line('------- ------ -------- ------------------------------ --------- ------------------------------ --------------------');
+		for r in (select * from table(get_sessions(p_username))) loop
+			dbms_output.put_line(lpad(r.inst_id,7)||' '||
+			                     lpad(r.sid,6)||' '||
+								 lpad(r.serial#,8)||' '||
+								 rpad(r.username,30)||' '||
+								 rpad(r.status,9)||' '||
+								 rpad(r.machine,30)||' '||
+								 rpad(r.program,20));
 		end loop;
 	end;
 

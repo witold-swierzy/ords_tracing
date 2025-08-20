@@ -21,6 +21,12 @@ is
 
 	procedure print_jobs;
 
+	function get_sessions(p_username varchar2 := null) return session_array_type
+	pipelined
+	parallel_enable;
+
+	procedure print_sessions(p_username varchar2 := null);
+
 	function get_report(p_username varchar2 := null) return clob;
 
 	procedure print_report(p_username varchar2 := null);
