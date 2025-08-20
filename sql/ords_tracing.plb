@@ -58,7 +58,8 @@ is
 		commit;
 	end;
 
-	procedure create_job(freq integer, p_username varchar2 := null)
+	procedure create_job(p_username  varchar2 := null,
+	                     p_frequency integer := 5)
 	is
 		v_job varchar2(200) := 'ORDS_TRC_JOB';
 		v_block varchar2(200) := 'BEGIN ORDS_TRC_PKG.SNAPSHOT';
@@ -83,10 +84,11 @@ is
                                   'PLSQL_BLOCK',
                                   v_block,
                                   enabled => true,
-                                  repeat_interval => 'FREQ=SECONDLY;INTERVAL='||freq);
+                                  repeat_interval => 'FREQ=SECONDLY;INTERVAL='||p_frequency);
 	end;
 
-	procedure drop_job(p_username varchar2 := null)
+	procedure drop_job(p_username varchar2 := null, 
+	                   p_purge_logs boolean := false)
 	is
 		v_job varchar2(200) := 'ORDS_TRC_JOB';
 	begin		
@@ -95,6 +97,53 @@ is
 		end if;
 		
 		dbms_scheduler.drop_job(v_job,defer => true);
+		
+		if p_purge_logs then
+			purge_logs(p_username);
+		end if;
+	end;
+
+	procedure drop_all_jobs(p_purge_logs boolean := false)
+	is
+		v_username varchar2(200);
+	begin
+		for r in (select *
+		          from user_scheduler_jobs
+				  where job_name like 'ORDS_TRC_JOB%') loop
+			v_username := substr(r.job_name,14);
+			drop_job(v_username,p_purge_logs);
+		end loop;
+	end;
+	
+	function get_jobs return job_array_type
+	pipelined
+	parallel_enable
+	is
+		v_job_record job_record_type;
+	begin
+		for r in (select *
+		          from user_scheduler_jobs
+				  where job_name like 'ORDS_TRC_JOB%') loop	
+			v_job_record.job_name  := r.job_name;
+			v_job_record.frequency := to_number(substr(r.repeat_interval,24));
+			pipe row (v_job_record);
+		end loop;
+	end;
+
+	procedure print_jobs
+	is
+		v_job_name  varchar2(200);
+		v_frequency varchar2(200);
+	begin
+		dbms_output.put_line('JOB_NAME                                 FREQUENCY');
+		dbms_output.put_line('---------------------------------------- ---------');
+		for r in (select *
+		          from table(get_jobs))  loop
+			v_job_name  := rpad(r.job_name,40);
+			v_frequency := lpad(r.frequency,9);
+
+			dbms_output.put_line(v_job_name||' '||v_frequency);
+		end loop;
 	end;
 
 	function get_report (p_username varchar2 := null) return clob
